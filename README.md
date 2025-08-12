@@ -42,7 +42,7 @@ The extension hides all non-core WordPress admin menu items **except**:
 
 1. **Download or Clone**
    ```bash
-   git clone https://github.com/yourusername/wp-clean-admin.git
+   git clone https://github.com/verygoodplugins/wp-clean-admin.git
    cd wp-clean-admin
    ```
 
@@ -103,7 +103,7 @@ wp-clean-admin/
 ### Local Development
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/wp-clean-admin.git
+git clone https://github.com/verygoodplugins/wp-clean-admin.git
 cd wp-clean-admin
 
 # Load in Chrome for testing
@@ -136,15 +136,15 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🐛 Issues & Support
 
-Found a bug or have a feature request? Please [open an issue](https://github.com/yourusername/wp-clean-admin/issues).
+Found a bug or have a feature request? Please [open an issue](https://github.com/verygoodplugins/wp-clean-admin/issues).
 
 ## 📸 Screenshots
 
 ### Before
-![WordPress admin with plugin clutter](screenshots/before.png)
+![WordPress admin with plugin clutter](.github/screenshots/before.png)
 
 ### After  
-![Clean WordPress admin menu](screenshots/after.png)
+![Clean WordPress admin menu](.github/screenshots/after.png)
 
 ---
 

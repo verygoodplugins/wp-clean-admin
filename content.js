@@ -22,88 +22,174 @@
     'update-core.php'
   ]);
 
-  // Read enabled flag from storage (default true)
   let enabled = true;
-
   const storageKey = 'wp_admin_menu_cleaner_enabled';
+  let observer = null;
+  let isInitialized = false;
 
-  chrome.storage?.sync?.get(storageKey, (res) => {
-    if (res && typeof res[storageKey] === 'boolean') {
-      enabled = res[storageKey];
-    }
-    maybeApply();
-  });
 
-  // Listen for popup toggle
-  chrome.runtime?.onMessage?.addListener((msg) => {
-    if (msg && msg.type === 'WP_ADMIN_MENU_CLEANER_TOGGLE') {
-      enabled = !!msg.enabled;
-      maybeApply({ force: true });
-    }
-  });
-
-  // Re-apply if admin menu changes (rare, but helps)
-  const obs = new MutationObserver(() => {
-    if (!enabled) return;
-    debounceApply();
-  });
-
-  let debTimer = null;
-  function debounceApply() {
-    clearTimeout(debTimer);
-    debTimer = setTimeout(() => applyCleanUp(), 50);
-  }
-
-  function maybeApply({ force = false } = {}) {
+  // Immediately inject CSS to hide menu items while we determine state
+  // This prevents the flash of unstyled content
+  function injectInitialHidingCSS() {
     if (!isWPAdmin()) return;
-    if (enabled) {
-      applyCleanUp({ force });
-      // Observe changes in the admin menu area
-      const wrap = document.getElementById('adminmenuwrap') || document.getElementById('adminmenu');
-      if (wrap) {
-        obs.observe(wrap, { childList: true, subtree: true });
+    
+    const style = document.createElement('style');
+    style.id = 'vgp-clean-initial-hide';
+    style.textContent = `
+      /* Temporarily hide non-core menu items until we know the state */
+      #adminmenu li.menu-top:not([class*="dashboard"]):not([class*="post"]):not([class*="media"]):not([class*="page"]):not([class*="comment"]):not([class*="appearance"]):not([class*="plugin"]):not([class*="user"]):not([class*="tool"]):not([class*="setting"]) {
+        visibility: hidden !important;
       }
+    `;
+    
+    if (document.head) {
+      document.head.appendChild(style);
     } else {
-      cleanupStyles();
-      obs.disconnect();
+      // If head doesn't exist yet, wait for it
+      const observer = new MutationObserver((mutations, obs) => {
+        if (document.head) {
+          document.head.appendChild(style);
+          obs.disconnect();
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
     }
   }
+
+  // Call this immediately
+  injectInitialHidingCSS();
+
+  // Initialize from storage
+  chrome.storage.sync.get(storageKey, (result) => {
+    if (storageKey in result) {
+      enabled = result[storageKey];
+    } else {
+      // First time - set default
+      enabled = true;
+      chrome.storage.sync.set({ [storageKey]: enabled });
+    }
+    
+    // Remove initial hiding CSS once we know the state
+    const initialHide = document.getElementById('vgp-clean-initial-hide');
+    if (initialHide) {
+      initialHide.remove();
+    }
+    
+    isInitialized = true;
+    waitForAdminMenuAndApply();
+  });
+
+  // Listen for storage changes
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' && changes[storageKey]) {
+      enabled = changes[storageKey].newValue;
+      applyState();
+    }
+  });
+
+  // Listen for direct messages from popup
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'WP_ADMIN_MENU_CLEANER_TOGGLE') {
+      enabled = message.enabled;
+      applyState();
+      sendResponse({ success: true });
+    }
+  });
 
   function isWPAdmin() {
-    // Basic sanity check
     return location.pathname.includes('/wp-admin/');
   }
 
+  function waitForAdminMenuAndApply() {
+    if (!isInitialized) return;
+    
+    const adminmenu = document.getElementById('adminmenu');
+    if (adminmenu) {
+      applyState();
+    } else {
+      // Wait for admin menu to appear
+      const observer = new MutationObserver((mutations, obs) => {
+        const adminmenu = document.getElementById('adminmenu');
+        if (adminmenu) {
+          obs.disconnect();
+          applyState();
+        }
+      });
+      
+      if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+      } else {
+        // Wait for body to exist
+        const bodyWaiter = new MutationObserver((mutations, obs) => {
+          if (document.body) {
+            obs.disconnect();
+            observer.observe(document.body, { childList: true, subtree: true });
+          }
+        });
+        bodyWaiter.observe(document.documentElement, { childList: true });
+      }
+    }
+  }
+
+  function applyState() {
+    if (!isWPAdmin()) {
+      return;
+    }
+
+    if (enabled) {
+      applyCleanUp();
+      startObserving();
+    } else {
+      removeCleanUp();
+      stopObserving();
+    }
+  }
+
+  function startObserving() {
+    if (observer) return;
+    
+    const adminMenu = document.getElementById('adminmenuwrap') || document.getElementById('adminmenu');
+    if (!adminMenu) return;
+
+    observer = new MutationObserver(() => {
+      if (enabled) {
+        clearTimeout(observer.debounceTimer);
+        observer.debounceTimer = setTimeout(() => {
+          applyCleanUp();
+        }, 50);
+      }
+    });
+
+    observer.observe(adminMenu, { childList: true, subtree: true });
+  }
+
+  function stopObserving() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  }
+
   function currentMenuSlugsToKeep() {
-    // Determine the "current" page slug (so its menu entry remains).
-    // Normalize to relative "wp-admin/..." path, like WP does in menu hrefs.
     const url = new URL(window.location.href);
     let rel = url.pathname.split('/').pop() || '';
     const q = url.search ? url.search.replace(/^\?/, '') : '';
     if (q) rel += '?' + q;
 
-    // Examples we want to keep as-is:
-    // - edit.php?post_type=page
-    // - admin.php?page=my-plugin
-    // - plugins.php
-    // Some screens (like post.php, post-new.php) should map back to the Posts or Pages parent.
-    // We'll keep both the exact page and the nearest "editor family" parent.
-
     const keep = new Set([rel]);
 
-    // Map editor-like screens back to their parent menu items.
+    // Map editor screens back to their parent menu items
     if (/^post(-new)?\.php/.test(rel)) {
-      // Guess parent based on post_type
       const params = new URLSearchParams(url.search);
       const pt = params.get('post_type');
       if (pt === 'page') {
         keep.add('edit.php?post_type=page');
       } else {
-        keep.add('edit.php'); // default posts
+        keep.add('edit.php');
       }
     }
 
-    // For term screens, etc., WP highlights the parent CPT/Posts item
+    // For term screens
     if (rel.startsWith('edit-tags.php')) {
       const params = new URLSearchParams(url.search);
       const pt = params.get('post_type');
@@ -117,14 +203,27 @@
     return keep;
   }
 
-  function cleanSubmenu(submenu, allowed, currentSlugs) {
-    // Clean up submenu items, keeping only core items and current page items
-    const submenuItems = submenu.querySelectorAll('li');
-    submenuItems.forEach((li) => {
-      const link = li.querySelector('a');
+  function applyCleanUp() {
+    const adminmenu = document.getElementById('adminmenu');
+    if (!adminmenu) {
+      return;
+    }
+
+    // Add marker class
+    document.documentElement.classList.add('vgp-clean-admin');
+
+    const keep = currentMenuSlugsToKeep();
+    const allowed = new Set([...CORE_MENU_SLUGS, ...keep]);
+
+    // Hide non-core menu items
+    const items = adminmenu.querySelectorAll('li.menu-top');
+    let hiddenCount = 0;
+    let shownCount = 0;
+
+    items.forEach((li) => {
+      const link = li.querySelector(':scope > a.menu-top');
       if (!link) return;
 
-      // Normalize submenu link href
       let hrefRel = '';
       try {
         const aURL = new URL(link.href, window.location.origin);
@@ -132,11 +231,44 @@
         const qs = aURL.search ? aURL.search.replace(/^\?/, '') : '';
         if (qs) hrefRel += '?' + qs;
       } catch (e) {
-        // If parsing fails, keep it visible to be safe
         return;
       }
 
-      // Keep if it's a core item, current page, or has current class
+      const shouldKeep = allowed.has(hrefRel) || link.classList.contains('current');
+      li.style.display = shouldKeep ? '' : 'none';
+      
+      if (shouldKeep) {
+        shownCount++;
+        // Clean submenu items
+        const submenu = li.querySelector('.wp-submenu');
+        if (submenu) {
+          submenu.style.display = '';
+          cleanSubmenu(submenu, allowed, keep);
+        }
+      } else {
+        hiddenCount++;
+      }
+    });
+
+    injectCleanCSS();
+  }
+
+  function cleanSubmenu(submenu, allowed, currentSlugs) {
+    const submenuItems = submenu.querySelectorAll('li');
+    submenuItems.forEach((li) => {
+      const link = li.querySelector('a');
+      if (!link) return;
+
+      let hrefRel = '';
+      try {
+        const aURL = new URL(link.href, window.location.origin);
+        hrefRel = aURL.pathname.split('/').pop() || '';
+        const qs = aURL.search ? aURL.search.replace(/^\?/, '') : '';
+        if (qs) hrefRel += '?' + qs;
+      } catch (e) {
+        return;
+      }
+
       const shouldKeep = allowed.has(hrefRel) || 
                         currentSlugs.has(hrefRel) || 
                         link.classList.contains('current') ||
@@ -146,57 +278,42 @@
     });
   }
 
-  function applyCleanUp({ force = false } = {}) {
-    if (!force && !enabled) return;
+  function removeCleanUp() {
+    // Remove marker class
+    document.documentElement.classList.remove('vgp-clean-admin');
+    
+    // Remove injected CSS
+    const style = document.getElementById('vgp-clean-style');
+    if (style) {
+      style.remove();
+    }
 
+    // Show all menu items
     const adminmenu = document.getElementById('adminmenu');
-    if (!adminmenu) return;
+    if (!adminmenu) {
+      return;
+    }
 
-    // Add a marker class for optional CSS tweaks
-    document.documentElement.classList.add('vgp-clean-admin');
-
-    const keep = currentMenuSlugsToKeep();
-
-    // Build a set of hrefs we'll keep (core + current)
-    const allowed = new Set([...CORE_MENU_SLUGS, ...keep]);
-
-    // Iterate all menu links and hide those that are not allowed
     const items = adminmenu.querySelectorAll('li.menu-top');
+    let restoredCount = 0;
+
     items.forEach((li) => {
-      const link = li.querySelector(':scope > a.menu-top');
-      if (!link) return;
-
-      // Normalize the link href the same way
-      let hrefRel = '';
-      try {
-        const aURL = new URL(link.href, window.location.origin);
-        hrefRel = aURL.pathname.split('/').pop() || '';
-        const qs = aURL.search ? aURL.search.replace(/^\?/, '') : '';
-        if (qs) hrefRel += '?' + qs;
-      } catch (e) {
-        // If parsing fails, skip hiding to be safe
-        return;
-      }
-
-      const shouldKeep = allowed.has(hrefRel) || link.classList.contains('current');
-      li.style.display = shouldKeep ? '' : 'none';
-
-      // If this is the current parent (e.g., top-level), keep its submenu visible
-      // but also clean up the submenu items
-      if (shouldKeep) {
-        const submenu = li.querySelector('.wp-submenu');
-        if (submenu) {
-          submenu.style.display = '';
-          cleanSubmenu(submenu, allowed, keep);
-        }
+      li.style.display = '';
+      restoredCount++;
+      
+      // Restore submenu items
+      const submenu = li.querySelector('.wp-submenu');
+      if (submenu) {
+        submenu.style.display = '';
+        submenu.querySelectorAll('li').forEach((subLi) => {
+          subLi.style.display = '';
+        });
       }
     });
 
-    // Optional: tighten the menu column to avoid a big empty gap
-    injectCSS();
   }
 
-  function injectCSS() {
+  function injectCleanCSS() {
     if (document.getElementById('vgp-clean-style')) return;
 
     const style = document.createElement('style');
@@ -208,27 +325,10 @@
     document.head.appendChild(style);
   }
 
-  function cleanupStyles() {
-    document.documentElement.classList.remove('vgp-clean-admin');
-    const style = document.getElementById('vgp-clean-style');
-    if (style) style.remove();
-
-    // Unhide everything
-    const adminmenu = document.getElementById('adminmenu');
-    if (!adminmenu) return;
-    adminmenu.querySelectorAll('li.menu-top').forEach((li) => {
-      li.style.display = '';
-      const submenu = li.querySelector('.wp-submenu');
-      if (submenu) {
-        submenu.style.display = '';
-        // Restore all submenu items
-        submenu.querySelectorAll('li').forEach((subLi) => {
-          subLi.style.display = '';
-        });
-      }
-    });
-  }
-
-  // If the page navigates via Turbo-like behavior, re-apply on load events
-  window.addEventListener('load', () => maybeApply({ force: true }));
+  // Handle page navigation events
+  window.addEventListener('load', () => {
+    if (isInitialized) {
+      applyState();
+    }
+  });
 })();

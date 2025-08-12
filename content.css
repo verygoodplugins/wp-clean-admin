@@ -1,0 +1,20 @@
+/* 
+ * WP Admin Menu Cleaner - Immediate CSS injection
+ * This CSS is injected immediately to prevent flash of hidden content
+ * The JavaScript will then selectively show items that should remain visible
+ */
+
+/* Only hide items when the extension is enabled */
+html.vgp-clean-admin #adminmenu li.menu-top:not([data-vgp-core]):not([data-vgp-current]) {
+  display: none !important;
+}
+
+/* Hide submenu items when extension is enabled */
+html.vgp-clean-admin #adminmenu .wp-submenu li:not([data-vgp-core]):not([data-vgp-current]) {
+  display: none !important;
+}
+
+/* Hide menu separators when extension is enabled */
+html.vgp-clean-admin #adminmenu li.wp-menu-separator {
+  display: none !important;
+}

@@ -234,30 +234,48 @@
         return;
       }
 
-      const shouldKeep = allowed.has(hrefRel) || link.classList.contains('current');
-      li.style.display = shouldKeep ? '' : 'none';
+      const isCore = CORE_MENU_SLUGS.has(hrefRel);
+      const isCurrent = keep.has(hrefRel) || link.classList.contains('current');
       
-      if (shouldKeep) {
+      // Mark with data attributes for CSS targeting
+      if (isCore) {
+        li.setAttribute('data-vgp-core', 'true');
         shownCount++;
-        // Clean submenu items
-        const submenu = li.querySelector('.wp-submenu');
-        if (submenu) {
-          submenu.style.display = '';
-          cleanSubmenu(submenu, allowed, keep);
-        }
       } else {
+        li.removeAttribute('data-vgp-core');
+      }
+      
+      if (isCurrent) {
+        li.setAttribute('data-vgp-current', 'true');
+        shownCount++;
+      } else {
+        li.removeAttribute('data-vgp-current');
+      }
+
+      if (!isCore && !isCurrent) {
         hiddenCount++;
+      }
+
+      // Handle submenu items
+      const submenu = li.querySelector('.wp-submenu');
+      if (submenu && (isCore || isCurrent)) {
+        cleanSubmenu(submenu, allowed, keep);
       }
     });
 
-    injectCleanCSS();
+    // CSS is now handled by content.css file injected by manifest
   }
 
   function cleanSubmenu(submenu, allowed, currentSlugs) {
+    // Mark submenu items with data attributes for CSS targeting
     const submenuItems = submenu.querySelectorAll('li');
     submenuItems.forEach((li) => {
       const link = li.querySelector('a');
-      if (!link) return;
+      if (!link) {
+        // If no link, mark as core to be safe
+        li.setAttribute('data-vgp-core', 'true');
+        return;
+      }
 
       let hrefRel = '';
       try {
@@ -266,15 +284,28 @@
         const qs = aURL.search ? aURL.search.replace(/^\?/, '') : '';
         if (qs) hrefRel += '?' + qs;
       } catch (e) {
+        // If parsing fails, mark as core to be safe
+        li.setAttribute('data-vgp-core', 'true');
         return;
       }
 
-      const shouldKeep = allowed.has(hrefRel) || 
-                        currentSlugs.has(hrefRel) || 
-                        link.classList.contains('current') ||
-                        li.classList.contains('current');
+      const isCore = allowed.has(hrefRel);
+      const isCurrent = currentSlugs.has(hrefRel) || 
+                       link.classList.contains('current') ||
+                       li.classList.contains('current');
       
-      li.style.display = shouldKeep ? '' : 'none';
+      // Mark with data attributes for CSS targeting
+      if (isCore) {
+        li.setAttribute('data-vgp-core', 'true');
+      } else {
+        li.removeAttribute('data-vgp-core');
+      }
+      
+      if (isCurrent) {
+        li.setAttribute('data-vgp-current', 'true');
+      } else {
+        li.removeAttribute('data-vgp-current');
+      }
     });
   }
 
@@ -282,50 +313,32 @@
     // Remove marker class
     document.documentElement.classList.remove('vgp-clean-admin');
     
-    // Remove injected CSS
-    const style = document.getElementById('vgp-clean-style');
-    if (style) {
-      style.remove();
-    }
-
-    // Show all menu items
+    // Remove all data attributes to ensure clean state
     const adminmenu = document.getElementById('adminmenu');
-    if (!adminmenu) {
-      return;
+    if (adminmenu) {
+      adminmenu.querySelectorAll('[data-vgp-core], [data-vgp-current]').forEach((el) => {
+        el.removeAttribute('data-vgp-core');
+        el.removeAttribute('data-vgp-current');
+      });
     }
 
-    const items = adminmenu.querySelectorAll('li.menu-top');
-    let restoredCount = 0;
-
-    items.forEach((li) => {
-      li.style.display = '';
-      restoredCount++;
-      
-      // Restore submenu items
-      const submenu = li.querySelector('.wp-submenu');
-      if (submenu) {
-        submenu.style.display = '';
-        submenu.querySelectorAll('li').forEach((subLi) => {
-          subLi.style.display = '';
-        });
-      }
-    });
-
   }
 
-  function injectCleanCSS() {
-    if (document.getElementById('vgp-clean-style')) return;
 
-    const style = document.createElement('style');
-    style.id = 'vgp-clean-style';
-    style.textContent = `
-      /* Avoid stray separators taking up space */
-      html.vgp-clean-admin #adminmenu li.wp-menu-separator { display: none !important; }
-    `;
-    document.head.appendChild(style);
+
+  // Initialize when DOM is ready
+  function init() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => applyState());
+    } else {
+      applyState();
+    }
   }
 
-  // Handle page navigation events
+  // Start immediately
+  init();
+
+  // Re-apply on navigation changes
   window.addEventListener('load', () => {
     if (isInitialized) {
       applyState();

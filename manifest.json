@@ -12,6 +12,7 @@
     {
       "matches": ["*://*/wp-admin/*"],
       "js": ["content.js"],
+      "css": ["content.css"],
       "run_at": "document_start"
     }
   ]

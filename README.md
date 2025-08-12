@@ -2,11 +2,14 @@
 
 A lightweight Chrome extension that cleans up the WordPress admin menu by hiding non-core items while preserving the current page's menu item. Perfect for clean screenshots, screencasts, and focused WordPress admin demos.
 
+![Clean WordPress admin menu](.github/screenshots/wp-clean-admin.jpg)
+
 ## ✨ Features
 
 - **Smart Menu Cleaning**: Hides plugin and theme menu items while keeping WordPress core menus
 - **Current Page Awareness**: Always shows the menu item for the page you're currently viewing
 - **Submenu Support**: Cleans both top-level and submenu items
+- **Persistent Across Navigation**: No flash or re-hiding when navigating between admin pages
 - **Easy Toggle**: Simple on/off switch via extension popup
 - **Zero Configuration**: Works out of the box with sensible defaults
 - **Lightweight**: Minimal performance impact

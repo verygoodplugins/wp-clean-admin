@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "WP Admin Menu Cleaner",
+  "version": "0.1.0",
+  "description": "Hide non-core items in the WordPress admin menu, but keep the current page.",
+  "action": {
+    "default_title": "WP Admin Menu Cleaner",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["*://*/wp-admin/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

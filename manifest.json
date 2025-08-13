@@ -1,13 +1,28 @@
 {
   "manifest_version": 3,
   "name": "WP Admin Menu Cleaner",
-  "version": "0.1.0",
-  "description": "Hide non-core items in the WordPress admin menu, but keep the current page.",
+  "version": "1.0.0",
+  "description": "Clean up the WordPress admin by hiding plugin clutter, while keeping current page visible. Perfect for screenshots and demos.",
+  "author": "Very Good Plugins",
+  "homepage_url": "https://github.com/verygoodplugins/wp-clean-admin",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
     "default_title": "WP Admin Menu Cleaner",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["*://*/wp-admin/*"],
   "content_scripts": [
     {
       "matches": ["*://*/wp-admin/*"],

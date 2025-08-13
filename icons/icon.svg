@@ -1,0 +1,29 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#0073aa" stroke="#005177" stroke-width="2"/>
+  
+  <!-- WordPress W icon -->
+  <path d="M32 64c0-17.67 14.33-32 32-32s32 14.33 32 32-14.33 32-32 32-32-14.33-32-32zm8 0c0 13.25 10.75 24 24 24s24-10.75 24-24-10.75-24-24-24-24 10.75-24 24z" fill="white"/>
+  
+  <!-- Menu lines with "clean" effect -->
+  <g fill="white" opacity="0.9">
+    <!-- Full menu lines (core items) -->
+    <rect x="20" y="45" width="24" height="3" rx="1.5"/>
+    <rect x="20" y="52" width="24" height="3" rx="1.5"/>
+    <rect x="20" y="59" width="24" height="3" rx="1.5"/>
+    
+    <!-- Faded/hidden menu lines (plugin items) -->
+    <rect x="20" y="66" width="24" height="3" rx="1.5" opacity="0.3"/>
+    <rect x="20" y="73" width="24" height="3" rx="1.5" opacity="0.3"/>
+    <rect x="20" y="80" width="24" height="3" rx="1.5" opacity="0.3"/>
+  </g>
+  
+  <!-- Clean/sparkle effect -->
+  <g fill="white" opacity="0.8">
+    <circle cx="85" cy="45" r="2"/>
+    <circle cx="92" cy="52" r="1.5"/>
+    <circle cx="88" cy="60" r="1"/>
+    <path d="M95 48l2-2 2 2-2 2z"/>
+    <path d="M98 58l1.5-1.5 1.5 1.5-1.5 1.5z"/>
+  </g>
+</svg>

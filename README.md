@@ -143,12 +143,9 @@ Found a bug or have a feature request? Please [open an issue](https://github.com
 
 ## 📸 Screenshots
 
-### Before
-![WordPress admin with plugin clutter](.github/screenshots/before.png)
-
-### After  
-![Clean WordPress admin menu](.github/screenshots/after.png)
+### Before and After
+![WordPress admin with plugin clutter](.github/screenshots/store-screenshot-1-before-after.jpg)
 
 ---
 
-**Made with ❤️ for the WordPress community**
+**Another [Very Good Plugin](https://verygoodplugins.com) made with ❤️ for the WordPress community**

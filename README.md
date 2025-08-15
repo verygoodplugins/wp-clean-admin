@@ -39,7 +39,7 @@ The extension hides all non-core WordPress admin menu items **except**:
 ## 📦 Installation
 
 ### From Chrome Web Store
-*Coming soon...*
+[Install WP Admin Menu Cleaner](https://chromewebstore.google.com/detail/wp-admin-menu-cleaner/hjcofmagkkcnnghnnfpbingafegjaihd)
 
 ### Manual Installation (Developer Mode)
 
